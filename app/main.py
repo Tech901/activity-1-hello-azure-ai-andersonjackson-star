@@ -45,13 +45,13 @@ def _get_openai_client():
     global _openai_client
     if _openai_client is None:
         # TODO: Uncomment and configure
-        #   from openai import AzureOpenAI
-        #   _openai_client = AzureOpenAI(
-        #       azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-        #       api_key=os.environ["AZURE_OPENAI_API_KEY"],
-        #       api_version="2024-10-21",
-        #   )
-        raise NotImplementedError("Configure the Azure OpenAI client")
+          from openai import AzureOpenAI
+          _openai_client = AzureOpenAI(
+               azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
+               api_key=os.environ["AZURE_OPENAI_API_KEY"],
+               api_version="2024-10-21",
+           )
+        
     return _openai_client
 
 
@@ -62,13 +62,13 @@ def _get_content_safety_client():
         # NOTE: The Content Safety SDK handles API versioning internally --
         # no api_version parameter is needed (unlike the OpenAI SDK).
         # TODO: Uncomment and configure
-        #   from azure.ai.contentsafety import ContentSafetyClient
-        #   from azure.core.credentials import AzureKeyCredential
-        #   _content_safety_client = ContentSafetyClient(
-        #       endpoint=os.environ["AZURE_CONTENT_SAFETY_ENDPOINT"],
-        #       credential=AzureKeyCredential(os.environ["AZURE_CONTENT_SAFETY_KEY"]),
-        #   )
-        raise NotImplementedError("Configure the Content Safety client")
+           from azure.ai.contentsafety import ContentSafetyClient
+           from azure.core.credentials import AzureKeyCredential
+           _content_safety_client = ContentSafetyClient(
+               endpoint=os.environ["AZURE_CONTENT_SAFETY_ENDPOINT"],
+               credential=AzureKeyCredential(os.environ["AZURE_CONTENT_SAFETY_KEY"]),
+           )
+        
     return _content_safety_client
 
 
@@ -79,13 +79,13 @@ def _get_language_client():
         # NOTE: The Language SDK handles API versioning internally --
         # no api_version parameter is needed (unlike the OpenAI SDK).
         # TODO: Uncomment and configure
-        #   from azure.ai.textanalytics import TextAnalyticsClient
-        #   from azure.core.credentials import AzureKeyCredential
-        #   _language_client = TextAnalyticsClient(
-        #       endpoint=os.environ["AZURE_AI_LANGUAGE_ENDPOINT"],
-        #       credential=AzureKeyCredential(os.environ["AZURE_AI_LANGUAGE_KEY"]),
-        #   )
-        raise NotImplementedError("Configure the AI Language client")
+           from azure.ai.textanalytics import TextAnalyticsClient
+           from azure.core.credentials import AzureKeyCredential
+           _language_client = TextAnalyticsClient(
+               endpoint=os.environ["AZURE_AI_LANGUAGE_ENDPOINT"],
+               credential=AzureKeyCredential(os.environ["AZURE_AI_LANGUAGE_KEY"]),
+           )
+        
     return _language_client
 
 
@@ -103,12 +103,41 @@ def classify_311_request(request_text: str) -> dict:
     """
     # TODO: Step 1.1 - Get the OpenAI client
     # TODO: Step 1.2 - Call client.chat.completions.create() with:
-    #   model=os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o")
+      
     #   A system message that classifies into: Pothole, Noise Complaint,
     #   Trash/Litter, Street Light, Water/Sewer, Other
-    #   response_format={"type": "json_object"}, temperature=0
+    model=os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
+    response = client.chat.completions.create(
+             
+             messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a local city complaint classifier. Given a complaint from a resident, "
+                    "classify it into exactly one of the following categories:\n"
+                    "- Pothole\n"
+                    "- Noise Complaint\n"
+                    "- Trash/Litter\n"
+                    "- Street Light\n"
+                    "- Water/Sewer\n"
+                    "- Other\n\n"
+                    "Respond with a JSON object containing exactly these fields:\n"
+                    "  - \"category\": one of the six categories listed above (string)\n"
+                    "  - \"confidence\": your confidence score between 0.0 and 1.0 (number, not a percentage)\n"
+                    "  - \"reasoning\": a short explanation of why you chose this category (string)"
+                )
+            },
+            {
+                "role": "user",
+                "content": request_text
+            }
+        ],
+       response_format={"type": "json_object"}, temperature=0
+    )
     # TODO: Step 1.3 - Parse the JSON response with json.loads()
-    raise NotImplementedError("Implement classify_311_request in Step 1")
+    result = json.loads(response.choices[0].message.content)
+    return result
+        
 
 
 # ---------------------------------------------------------------------------
@@ -125,8 +154,17 @@ def check_content_safety(text: str) -> dict:
     """
     # TODO: Step 2.1 - Get the Content Safety client
     # TODO: Step 2.2 - Call client.analyze_text() with AnalyzeTextOptions
+    from azure.ai.contentsafety.models import AnalyzeTextOptions
+
+    def analyze_text(text: str):
+        result = client.analyze_text(AnalyzeTextOptions(text=text))
+
+        return result
     # TODO: Step 2.3 - Return safety results
-    raise NotImplementedError("Implement check_content_safety in Step 2")
+    categories = {item.category: item.severity for item in result.categories_analysis}
+    safe = all(severity == 0 for severity in categories.values())
+
+    return {"safe": True, "categories": categories}
 
 
 # ---------------------------------------------------------------------------
@@ -143,8 +181,12 @@ def extract_key_phrases(text: str) -> list[str]:
     """
     # TODO: Step 3.1 - Get the Language client
     # TODO: Step 3.2 - Call client.extract_key_phrases([text])
+    response = client.extract_key_phrases([text])
     # TODO: Step 3.3 - Return the list of key phrases
-    raise NotImplementedError("Implement extract_key_phrases in Step 3")
+    if response[0].is_error:
+        return []
+
+    return response[0].key_phrases
 
 
 def main():
