@@ -102,6 +102,7 @@ def classify_311_request(request_text: str) -> dict:
         dict with keys: category, confidence, reasoning
     """
     # TODO: Step 1.1 - Get the OpenAI client
+    client = _get_openai_client()
     # TODO: Step 1.2 - Call client.chat.completions.create() with:
       
     #   A system message that classifies into: Pothole, Noise Complaint,
@@ -135,8 +136,8 @@ def classify_311_request(request_text: str) -> dict:
        response_format={"type": "json_object"}, temperature=0
     )
     # TODO: Step 1.3 - Parse the JSON response with json.loads()
-    result = json.loads(response.choices[0].message.content)
-    return result
+    result = response.choices[0].message.content
+    return json.loads(result)
         
 
 
@@ -153,18 +154,21 @@ def check_content_safety(text: str) -> dict:
         dict with keys: safe (bool), categories (dict of category: severity)
     """
     # TODO: Step 2.1 - Get the Content Safety client
+    client = _get_content_safety_client()
     # TODO: Step 2.2 - Call client.analyze_text() with AnalyzeTextOptions
     from azure.ai.contentsafety.models import AnalyzeTextOptions
 
-    def analyze_text(text: str):
-        result = client.analyze_text(AnalyzeTextOptions(text=text))
-
-        return result
+    
+    result = client.analyze_text(AnalyzeTextOptions(text=text))
+    categories = {"Hate": 0, "SelfHarm": 0, "Sexual": 0, "Violence": 0}
+    for categories_analysis in result.categories_analysis:
+        categories[categories_analysis] = categories_analysis.severity
+        safe = all(severity == 0 for severity in categories.values())
+        
     # TODO: Step 2.3 - Return safety results
-    categories = {item.category: item.severity for item in result.categories_analysis}
-    safe = all(severity == 0 for severity in categories.values())
+    
 
-    return {"safe": True, "categories": categories}
+    return {"safe": safe, "categories": categories}
 
 
 # ---------------------------------------------------------------------------
