@@ -184,6 +184,7 @@ def extract_key_phrases(text: str) -> list[str]:
         List of key phrase strings.
     """
     # TODO: Step 3.1 - Get the Language client
+    client = _get_language_client()
     # TODO: Step 3.2 - Call client.extract_key_phrases([text])
     response = client.extract_key_phrases([text])
     # TODO: Step 3.3 - Return the list of key phrases
