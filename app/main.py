@@ -107,9 +107,9 @@ def classify_311_request(request_text: str) -> dict:
       
     #   A system message that classifies into: Pothole, Noise Complaint,
     #   Trash/Litter, Street Light, Water/Sewer, Other
-    model=os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
+    
     response = client.chat.completions.create(
-             
+        model=os.environ.get("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),      
              messages=[
             {
                 "role": "system",
@@ -162,8 +162,9 @@ def check_content_safety(text: str) -> dict:
     result = client.analyze_text(AnalyzeTextOptions(text=text))
     categories = {"Hate": 0, "SelfHarm": 0, "Sexual": 0, "Violence": 0}
     for categories_analysis in result.categories_analysis:
-        categories[categories_analysis] = categories_analysis.severity
-        safe = all(severity == 0 for severity in categories.values())
+        categories[categories_analysis.category] = categories_analysis.severity
+        
+    safe = all(severity == 0 for severity in categories.values())
         
     # TODO: Step 2.3 - Return safety results
     
